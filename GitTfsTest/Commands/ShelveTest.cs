@@ -1,28 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using Rhino.Mocks;
+﻿using Rhino.Mocks;
 using Rhino.Mocks.Constraints;
 using Sep.Git.Tfs.Commands;
 using Sep.Git.Tfs.Core;
-using Sep.Git.Tfs.Core.TfsInterop;
-using Sep.Git.Tfs.Test.TestHelpers;
-using StructureMap.AutoMocking;
 using Xunit;
 
 namespace Sep.Git.Tfs.Test.Commands
 {
-    public class ShelveTest
+    public class ShelveTest : AbstractGitTfsCommandTest<Shelve>
     {
-        private RhinoAutoMocker<Shelve> mocks;
-
-        public ShelveTest()
-        {
-            mocks = new RhinoAutoMocker<Shelve>();
-            mocks.Inject<TextWriter>(new StringWriter());
-            mocks.Get<Globals>().Repository = mocks.Get<IGitRepository>();
-        }
-
         [Fact]
         public void ShouldFailWithLessThanOneParents()
         {
@@ -152,22 +137,7 @@ namespace Sep.Git.Tfs.Test.Commands
                 x => x.Shelve(Arg<string>.Is.Anything, Arg<string>.Is.Anything, Arg<TfsChangesetInfo>.Is.Anything, Arg<bool>.Is.Anything));
         }
 
-        private TfsChangesetInfo ChangesetForRemote(string remoteId)
-        {
-            var mockRemote = mocks.AddAdditionalMockFor<IGitTfsRemote>();
-            mockRemote.Stub(x => x.Id).Return(remoteId);
-            return new TfsChangesetInfo() {Remote = mockRemote};
-        }
-
-        private void WireUpMockRemote()
-        {
-            mocks.Get<Globals>().Repository = mocks.Get<IGitRepository>();
-            var remote = mocks.Get<IGitTfsRemote>();
-            mocks.Get<IGitRepository>().Stub(x => x.GetLastParentTfsCommits(null)).IgnoreArguments()
-                .Return(new[] { new TfsChangesetInfo { Remote = remote } });
-        }
-
-        private void CreateShelveset(string shelvesetName)
+        protected void CreateShelveset(string shelvesetName)
         {
             mocks.Get<IGitTfsRemote>().Stub(x => x.HasShelveset(shelvesetName)).Return(true);
         }
