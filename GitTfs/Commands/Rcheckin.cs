@@ -17,7 +17,7 @@ namespace Sep.Git.Tfs.Commands
         private readonly CommitSpecificCheckinOptionsFactory _checkinOptionsFactory;
         private readonly TfsWriter _writer;
 
-        private bool Quick { get; set; }
+        public bool Quick { get; set; }
 
         public Rcheckin(TextWriter stdout, CheckinOptions checkinOptions, TfsWriter writer)
         {
@@ -52,25 +52,26 @@ namespace Sep.Git.Tfs.Commands
 
             if (repo.WorkingCopyHasUnstagedOrUncommitedChanges)
             {
-                throw new GitTfsException("error: You have local changes; rebase-workflow checkin only possible with clean working directory.")
-                    .WithRecommendation("Try 'git stash' to stash your local changes and checkin again.");
+                throw new GitTfsException(Errors.LOCAL_CHANGES)
+                    .WithRecommendation(Recommendations.TRY_STASH);
             }
 
-            // get latest changes from TFS to minimize possibility of late conflict
-            _stdout.WriteLine("Fetching changes from TFS to minimize possibility of late conflict...");
+            _stdout.WriteLine(Messages.FETCHING_CHANGES);
             parentChangeset.Remote.Fetch();
             if (parentChangeset.ChangesetId != parentChangeset.Remote.MaxChangesetId)
             {
-                throw new GitTfsException("error: New TFS changesets were found.")
-                    .WithRecommendation("Try to rebase HEAD onto latest TFS checkin and repeat rcheckin or alternatively checkin s");
+                throw new GitTfsException(Errors.NEW_UPSTREAM_CHANGES)
+                    .WithRecommendation(Recommendations.TRY_REBASE);
             }
 
             string tfsLatest = parentChangeset.Remote.MaxCommitHash;
 
-            // we could rcheckin only if tfsLatest changeset is a parent of HEAD
-            // so that we could rebase after each single checkin without conflicts
-            if (!String.IsNullOrWhiteSpace(repo.CommandOneline("rev-list", tfsLatest, "^HEAD")))
-                throw new GitTfsException("error: latest TFS commit should be parent of commits being checked in");
+            var commitsReachableByTfsLatestThatAreNotReachableByHead = 
+                repo.CommandOneline("rev-list", tfsLatest, "^HEAD");
+
+            if (!string.IsNullOrWhiteSpace(commitsReachableByTfsLatestThatAreNotReachableByHead))
+                throw new GitTfsException(Errors.LATEST_TFS_COMMIT_MUST_BE_A_PARENT_OF_HEAD)
+                    .WithRecommendation(Recommendations.TRY_REBASE);
 
             if (Quick)
             {
@@ -88,7 +89,9 @@ namespace Sep.Git.Tfs.Commands
                     string commitMessage = repo.GetCommitMessage(target, currentParent).Trim(' ', '\r', '\n');
                     var commitSpecificCheckinOptions = _checkinOptionsFactory.BuildCommitSpecificCheckinOptions(_checkinOptions, commitMessage);
 
-                    _stdout.WriteLine("Starting checkin of {0} '{1}'", target.Substring(0, 8), commitSpecificCheckinOptions.CheckinComment);
+                    _stdout.WriteLine(Messages.STARTING_CHECKIN_0_1, 
+                                      target.Substring(0, 8), 
+                                      commitSpecificCheckinOptions.CheckinComment);
                     long newChangesetId = tfsRemote.Checkin(target, currentParent, parentChangeset, commitSpecificCheckinOptions);
                     tfsRemote.FetchWithMerge(newChangesetId, gitParents);
                     if (tfsRemote.MaxChangesetId != newChangesetId)
@@ -96,10 +99,10 @@ namespace Sep.Git.Tfs.Commands
 
                     currentParent = target;
                     parentChangeset = new TfsChangesetInfo { ChangesetId = newChangesetId, GitCommit = tfsRemote.MaxCommitHash, Remote = tfsRemote };
-                    _stdout.WriteLine("Done with {0}.", target);
+                    _stdout.WriteLine(Messages.DONE_WITH_0, target);
                 }
 
-                _stdout.WriteLine("No more to rcheckin.");
+                _stdout.WriteLine(Messages.NO_MORE);
                 return GitTfsExitCodes.OK;
             }
             else
@@ -134,6 +137,42 @@ namespace Sep.Git.Tfs.Commands
                     _stdout.WriteLine("Rebase done successfully.");
                 }
             }
+        }
+
+        public static class Messages
+        {
+            public const string FETCHING_CHANGES =
+                "Fetching changes from TFS to minimize possibility of late conflict...";
+
+            public const string STARTING_CHECKIN_0_1 = 
+                "Starting checkin of {0} '{1}'";
+
+            public const string DONE_WITH_0 = 
+                "Done with {0}.";
+
+            public const string NO_MORE = 
+                "No more to rcheckin.";
+        }
+
+        public static class Errors
+        {
+            public const string LOCAL_CHANGES = 
+                "error: You have local changes; rebase-workflow checkin only possible with clean working directory.";
+
+            public const string NEW_UPSTREAM_CHANGES = 
+                "error: New TFS changesets were found.";
+
+            public const string LATEST_TFS_COMMIT_MUST_BE_A_PARENT_OF_HEAD = 
+                "error: latest TFS commit must be parent of the commits being checked in so that rebase-workflow checkin can happen without conflicts. ";
+        }
+
+        public static class Recommendations
+        {
+            public const string TRY_STASH = 
+                "Try 'git stash' to stash your local changes and checkin again.";
+
+            public const string TRY_REBASE = 
+                "Try to rebase HEAD onto latest TFS checkin and repeat rcheckin or alternatively checkins";
         }
     }
 }
