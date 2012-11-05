@@ -23,7 +23,7 @@ namespace Sep.Git.Tfs.Commands
         {
             _stdout = stdout;
             _checkinOptions = checkinOptions;
-            _checkinOptionsFactory = new CommitSpecificCheckinOptionsFactory(_stdout);
+            _checkinOptionsFactory = new CommitSpecificCheckinOptionsFactory();
             _writer = writer;
         }
 
@@ -76,7 +76,7 @@ namespace Sep.Git.Tfs.Commands
             if (Quick)
             {
                 string[] revList = null;
-                repo.CommandOutputPipe(tr => revList = tr.ReadToEnd().Split('\n').Where(s => !String.IsNullOrWhiteSpace(s)).ToArray(),
+                repo.CommandOutputPipe(tr => revList = tr.ReadToEnd().Split('\n').Where(s => !String.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToArray(),
                     "rev-list", "--parents", "--ancestry-path", "--first-parent", "--reverse", tfsLatest + "..HEAD");
 
                 string currentParent = tfsLatest;
@@ -88,6 +88,13 @@ namespace Sep.Git.Tfs.Commands
 
                     string commitMessage = repo.GetCommitMessage(target, currentParent).Trim(' ', '\r', '\n');
                     var commitSpecificCheckinOptions = _checkinOptionsFactory.BuildCommitSpecificCheckinOptions(_checkinOptions, commitMessage);
+
+                    commitSpecificCheckinOptions.WorkItemsToAssociate.ForEach(workItem => _stdout.WriteLine(Messages.ASSOCIATING_0, workItem));
+                    commitSpecificCheckinOptions.WorkItemsToResolve.ForEach(workItem => _stdout.WriteLine(Messages.RESOLVING_0, workItem));
+                    if (commitSpecificCheckinOptions.Force)
+                    {
+                        _stdout.WriteLine(Messages.FORCING_0, commitSpecificCheckinOptions.OverrideReason);
+                    }
 
                     _stdout.WriteLine(Messages.STARTING_CHECKIN_0_1, 
                                       target.Substring(0, 8), 
@@ -123,6 +130,14 @@ namespace Sep.Git.Tfs.Commands
 
                     string commitMessage = repo.GetCommitMessage(target, tfsLatest).Trim(' ', '\r', '\n');
                     var commitSpecificCheckinOptions = _checkinOptionsFactory.BuildCommitSpecificCheckinOptions(_checkinOptions, commitMessage);
+
+                    commitSpecificCheckinOptions.WorkItemsToAssociate.ForEach(workItem => _stdout.WriteLine(Messages.ASSOCIATING_0, workItem));
+                    commitSpecificCheckinOptions.WorkItemsToResolve.ForEach(workItem => _stdout.WriteLine(Messages.RESOLVING_0, workItem));
+                    if (commitSpecificCheckinOptions.Force)
+                    {
+                        _stdout.WriteLine(Messages.FORCING_0, commitSpecificCheckinOptions.OverrideReason);
+                    }
+
                     _stdout.WriteLine("Starting checkin of {0} '{1}'", target.Substring(0, 8), commitSpecificCheckinOptions.CheckinComment);
                     long newChangesetId = tfsRemote.Checkin(target, parentChangeset, commitSpecificCheckinOptions);
                     tfsRemote.FetchWithMerge(newChangesetId, gitParents);
@@ -146,12 +161,21 @@ namespace Sep.Git.Tfs.Commands
 
             public const string STARTING_CHECKIN_0_1 = 
                 "Starting checkin of {0} '{1}'";
-
+            
             public const string DONE_WITH_0 = 
                 "Done with {0}.";
 
             public const string NO_MORE = 
                 "No more to rcheckin.";
+
+            public const string ASSOCIATING_0 =
+                "Associating with work item #{0}";
+
+            public const string RESOLVING_0 =
+                "Resolving work item #{0}";
+
+            public const string FORCING_0 =
+                "Forcing the checkin: {0}";
         }
 
         public static class Errors

@@ -154,6 +154,38 @@ namespace Sep.Git.Tfs.Test.Commands
             Assert.Equal(Rcheckin.Messages.NO_MORE, output[i++]);
         }
 
+        [Fact]
+        public void Running_quick_with_associated_checkins()
+        {
+            WireUpMockRemote();
+            RepoHasNoUnstagedLocalChanges();
+            RepoHasNoUpstreamTFSChangesets();
+            TfsLatestIsAParentOfHead();
+            RepoHasCommitsToCheckIn(
+                "hash2000 hash1000 commit message for hash2",
+                "hash1000 hash0000 commit message for hash1"
+                );
+
+            UseCommandArgs("-w12345:associate"); 
+            Assert.Equal(1, CheckinOptions.WorkItemsToAssociate.Count);
+            Assert.Equal(0, CheckinOptions.WorkItemsToResolve.Count);
+            Assert.Equal("12345", CheckinOptions.WorkItemsToAssociate[0]);
+
+            CommandUnderTest.Quick = true;
+            CommandUnderTest.Run();
+
+            var output = writer.ToString().Split(new string[] {writer.NewLine}, StringSplitOptions.None);
+            var i = 0;
+            Assert.Equal(Rcheckin.Messages.FETCHING_CHANGES, output[i++]);
+            Assert.Equal(String.Format(Rcheckin.Messages.ASSOCIATING_0, "12345"), output[i++]);
+            Assert.Equal(String.Format(Rcheckin.Messages.STARTING_CHECKIN_0_1, "hash1000", "commit message for hash1"), output[i++]);
+            Assert.Equal(String.Format(Rcheckin.Messages.DONE_WITH_0, "hash1000"), output[i++]);
+            Assert.Equal(String.Format(Rcheckin.Messages.ASSOCIATING_0, "12345"), output[i++]);
+            Assert.Equal(String.Format(Rcheckin.Messages.STARTING_CHECKIN_0_1, "hash2000", "commit message for hash2"), output[i++]);
+            Assert.Equal(String.Format(Rcheckin.Messages.DONE_WITH_0, "hash2000"), output[i++]);
+            Assert.Equal(Rcheckin.Messages.NO_MORE, output[i++]);
+        }
+
         [Fact(Skip = "pending")]
         public void Running_with_unassociated_checkins()
         {

@@ -12,8 +12,7 @@ namespace Sep.Git.Tfs.Test.Util
         [Fact]
         public void Sets_commit_message_as_checkin_comments()
         {
-            TextWriter writer = new StringWriter();
-            CommitSpecificCheckinOptionsFactory factory = new CommitSpecificCheckinOptionsFactory(writer);
+            CommitSpecificCheckinOptionsFactory factory = new CommitSpecificCheckinOptionsFactory();
 
             string originalCheckinComment = "command-line input";
             CheckinOptions singletonCheckinOptions = new CheckinOptions()
@@ -33,8 +32,7 @@ namespace Sep.Git.Tfs.Test.Util
         [Fact]
         public void Adds_work_item_to_associate_and_removes_checkin_command_comment()
         {
-            StringWriter textWriter = new StringWriter();
-            CommitSpecificCheckinOptionsFactory factory = new CommitSpecificCheckinOptionsFactory(textWriter);
+            CommitSpecificCheckinOptionsFactory factory = new CommitSpecificCheckinOptionsFactory();
 
             CheckinOptions singletonCheckinOptions = new CheckinOptions();
 
@@ -62,8 +60,7 @@ namespace Sep.Git.Tfs.Test.Util
         [Fact]
         public void Adds_work_item_to_resolve_and_removes_checkin_command_comment()
         {
-            StringWriter textWriter = new StringWriter();
-            CommitSpecificCheckinOptionsFactory factory = new CommitSpecificCheckinOptionsFactory(textWriter);
+            CommitSpecificCheckinOptionsFactory factory = new CommitSpecificCheckinOptionsFactory();
 
             CheckinOptions singletonCheckinOptions = new CheckinOptions();
 

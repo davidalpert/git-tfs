@@ -16,22 +16,15 @@ namespace Sep.Git.Tfs.Util
     /// </remarks>
     public class CommitSpecificCheckinOptionsFactory
     {
-        TextWriter writer;
-
-        public CommitSpecificCheckinOptionsFactory(TextWriter writer)
-        {
-            this.writer = writer;
-        }
-
         public CheckinOptions BuildCommitSpecificCheckinOptions(CheckinOptions sourceCheckinOptions, string commitMessage)
         {
             var customCheckinOptions = Clone(sourceCheckinOptions);
 
             customCheckinOptions.CheckinComment = commitMessage;
 
-            ProcessWorkItemCommands(customCheckinOptions, writer);
+            ProcessWorkItemCommands(customCheckinOptions);
 
-            ProcessForceCommand(customCheckinOptions, writer);
+            ProcessForceCommand(customCheckinOptions);
 
             return customCheckinOptions;
         }
@@ -52,7 +45,7 @@ namespace Sep.Git.Tfs.Util
             return clone;
         }
 
-        private void ProcessWorkItemCommands(CheckinOptions checkinOptions, TextWriter writer)
+        private void ProcessWorkItemCommands(CheckinOptions checkinOptions)
         {
             MatchCollection workitemMatches;
             if ((workitemMatches = GitTfsConstants.TfsWorkItemRegex.Matches(checkinOptions.CheckinComment)).Count > 0)
@@ -62,11 +55,9 @@ namespace Sep.Git.Tfs.Util
                     switch (match.Groups["action"].Value)
                     {
                         case "associate":
-                            writer.WriteLine("Associating with work item {0}", match.Groups["item_id"]);
                             checkinOptions.WorkItemsToAssociate.Add(match.Groups["item_id"].Value);
                             break;
                         case "resolve":
-                            writer.WriteLine("Resolving work item {0}", match.Groups["item_id"]);
                             checkinOptions.WorkItemsToResolve.Add(match.Groups["item_id"].Value);
                             break;
                     }
@@ -75,7 +66,7 @@ namespace Sep.Git.Tfs.Util
             }
         }
 
-        private void ProcessForceCommand(CheckinOptions checkinOptions, TextWriter writer)
+        private void ProcessForceCommand(CheckinOptions checkinOptions)
         {
             MatchCollection workitemMatches;
             if ((workitemMatches = GitTfsConstants.TfsForceRegex.Matches(checkinOptions.CheckinComment)).Count == 1)
@@ -84,7 +75,6 @@ namespace Sep.Git.Tfs.Util
 
                 if (!string.IsNullOrWhiteSpace(overrideReason))
                 {
-                    writer.WriteLine("Forcing the checkin: {0}", overrideReason);
                     checkinOptions.Force = true;
                     checkinOptions.OverrideReason = overrideReason;
                 }
