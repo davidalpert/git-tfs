@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Sep.Git.Tfs.Core.TfsInterop
 {
     public interface IChange
